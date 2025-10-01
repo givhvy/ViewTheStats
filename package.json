@@ -1,0 +1,26 @@
+{
+  "name": "viewstats",
+  "version": "1.0.0",
+  "description": "YouTube Analytics Dashboard",
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "client": "live-server --port=2000 --host=localhost --no-browser",
+    "server": "node server/index.js",
+    "serve": "live-server"
+  },
+  "keywords": ["youtube", "analytics", "dashboard"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "firebase-admin": "^12.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "live-server": "^1.2.2"
+  }
+}
