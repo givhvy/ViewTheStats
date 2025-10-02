@@ -238,6 +238,7 @@ app.get('/api/channels', async (req, res) => {
         }
 
         const today = getVietnamDate();
+        const forceRefresh = req.query.refresh === 'true';
 
         // Always fetch latest notes from Firestore
         const snapshot = await db.collection('channels').orderBy('createdAt', 'desc').get();
@@ -261,8 +262,8 @@ app.get('/api/channels', async (req, res) => {
             return res.json([]);
         }
 
-        // Check cache for YouTube stats (but always use fresh notes)
-        if (dailyCache.date === today && dailyCache.data) {
+        // Check cache for YouTube stats (but always use fresh notes) - skip cache if forceRefresh
+        if (!forceRefresh && dailyCache.date === today && dailyCache.data) {
             console.log('✅ Using cached YouTube stats with fresh notes');
 
             // Merge cached stats with fresh notes and description from Firestore

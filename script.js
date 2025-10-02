@@ -6,8 +6,33 @@ class YouTubeChannelApp {
         this.dailySummary = { newVideosToday: 0, newViewsToday: 0 };
         this.initTheme();
         this.initEventListeners();
-        this.loadChannelsFromAPI();
+        this.checkAndLoadData();
         this.loadDailySummary();
+    }
+
+    // Get current date in Vietnam timezone (UTC+7)
+    getVietnamDate() {
+        const now = new Date();
+        const vietnamTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+        return vietnamTime.toISOString().split('T')[0]; // YYYY-MM-DD
+    }
+
+    // Check if it's a new day and load data accordingly
+    async checkAndLoadData() {
+        const today = this.getVietnamDate();
+        const lastFetchDate = localStorage.getItem('lastFetchDate');
+
+        // If it's a new day or first time, force refresh
+        const shouldForceRefresh = lastFetchDate !== today;
+
+        if (shouldForceRefresh) {
+            console.log('🆕 New day detected or first load - fetching fresh data');
+            localStorage.setItem('lastFetchDate', today);
+            await this.loadChannelsFromAPI(true);
+        } else {
+            console.log('📅 Same day - loading cached data');
+            await this.loadChannelsFromAPI(false);
+        }
     }
 
     // Initialize theme
@@ -39,9 +64,9 @@ class YouTubeChannelApp {
     }
 
     // Load channels from API/Firebase
-    async loadChannelsFromAPI() {
+    async loadChannelsFromAPI(forceRefresh = false) {
         try {
-            const apiUrl = `${this.getApiBaseUrl()}/api/channels`;
+            const apiUrl = `${this.getApiBaseUrl()}/api/channels${forceRefresh ? '?refresh=true' : ''}`;
             const response = await fetch(apiUrl);
 
             if (response.ok) {
@@ -101,11 +126,19 @@ class YouTubeChannelApp {
         const form = document.getElementById('channelForm');
         const urlInput = document.getElementById('channelUrl');
         const themeToggle = document.querySelector('.theme-toggle');
+        const refreshButton = document.getElementById('refreshButton');
 
         // Theme toggle
         if (themeToggle) {
             themeToggle.addEventListener('click', () => {
                 this.toggleTheme();
+            });
+        }
+
+        // Refresh button
+        if (refreshButton) {
+            refreshButton.addEventListener('click', () => {
+                this.handleRefresh();
             });
         }
 
@@ -121,6 +154,32 @@ class YouTubeChannelApp {
                 this.handleAddChannel();
             }
         });
+    }
+
+    // Handle refresh button click
+    async handleRefresh() {
+        const refreshButton = document.getElementById('refreshButton');
+        if (!refreshButton) return;
+
+        // Disable button and show loading state
+        refreshButton.disabled = true;
+        refreshButton.classList.add('loading');
+        const originalText = refreshButton.innerHTML;
+        refreshButton.innerHTML = '🔄 Refreshing...';
+
+        try {
+            await this.loadChannelsFromAPI(true);
+            await this.loadDailySummary();
+            this.showToast('Data refreshed successfully!');
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+            this.showToast('Failed to refresh data');
+        } finally {
+            // Re-enable button and restore original state
+            refreshButton.disabled = false;
+            refreshButton.classList.remove('loading');
+            refreshButton.innerHTML = originalText;
+        }
     }
 
     // Extract channel ID from URL

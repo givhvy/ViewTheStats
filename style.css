@@ -369,13 +369,16 @@ body {
 
 .card-header {
     margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .card-header h3 {
     font-size: 18px;
     font-weight: 600;
     color: hsl(var(--foreground));
-    margin: 0 0 8px 0;
+    margin: 0;
 }
 
 .card-header p {
@@ -578,7 +581,7 @@ body {
 
 .video-progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
     transition: width 0.5s ease;
     border-radius: 3px;
 }
@@ -901,4 +904,45 @@ body {
 .toast-notification.show {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* Refresh Button */
+.refresh-button {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: calc(var(--radius));
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.refresh-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+.refresh-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.refresh-button.loading {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
