@@ -239,17 +239,10 @@ app.get('/api/channels', async (req, res) => {
 
         const today = getVietnamDate();
 
-        // Check cache first
-        if (dailyCache.date === today && dailyCache.data) {
-            console.log('✅ Serving from cache (same day)');
-            return res.json(dailyCache.data);
-        }
-
-        console.log('🔄 Fetching fresh data from YouTube API');
-
+        // Always fetch latest notes from Firestore
         const snapshot = await db.collection('channels').orderBy('createdAt', 'desc').get();
 
-        // Get list of channel IDs from Firestore
+        // Get list of channel IDs and notes from Firestore
         const channelIds = [];
         const channelData = {};
         snapshot.forEach(doc => {
@@ -265,6 +258,21 @@ app.get('/api/channels', async (req, res) => {
         if (channelIds.length === 0) {
             return res.json([]);
         }
+
+        // Check cache for YouTube stats (but always use fresh notes)
+        if (dailyCache.date === today && dailyCache.data) {
+            console.log('✅ Using cached YouTube stats with fresh notes');
+
+            // Merge cached stats with fresh notes from Firestore
+            const channelsWithFreshNotes = dailyCache.data.map(channel => ({
+                ...channel,
+                note: channelData[channel.id]?.note || ''
+            }));
+
+            return res.json(channelsWithFreshNotes);
+        }
+
+        console.log('🔄 Fetching fresh data from YouTube API');
 
         // Fetch real-time stats from YouTube API (batch up to 50 channels per request)
         const channels = [];
@@ -309,7 +317,7 @@ app.get('/api/channels', async (req, res) => {
             }
         }
 
-        // Update cache
+        // Update cache (without notes to avoid stale data)
         dailyCache = {
             date: today,
             data: channels
@@ -395,10 +403,7 @@ app.patch('/api/channel/:channelId/note', async (req, res) => {
             note: note || ''
         });
 
-        // Clear cache to force refresh
-        dailyCache.date = null;
-        dailyCache.data = null;
-
+        // No need to clear cache - notes are always fetched fresh from Firestore
         res.json({ success: true, note: note || '' });
     } catch (error) {
         console.error('Error updating note:', error);

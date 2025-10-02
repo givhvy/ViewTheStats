@@ -56,6 +56,7 @@ class YouTubeChannelApp {
         } finally {
             this.renderChannels();
             this.updateChannelCount();
+            this.updateTotalVideosProgress();
         }
     }
 
@@ -257,6 +258,7 @@ class YouTubeChannelApp {
             // Re-render
             this.renderChannels();
             this.updateChannelCount();
+            this.updateTotalVideosProgress();
 
             // Reload daily summary after adding channel
             this.loadDailySummary();
@@ -319,6 +321,7 @@ class YouTubeChannelApp {
                 this.channels = this.channels.filter(channel => channel.id !== channelId);
                 this.renderChannels();
                 this.updateChannelCount();
+                this.updateTotalVideosProgress();
             } else {
                 alert('Failed to delete channel');
             }
@@ -332,6 +335,34 @@ class YouTubeChannelApp {
     updateChannelCount() {
         const countElement = document.getElementById('channelCount');
         countElement.textContent = this.channels.length;
+    }
+
+    // Update total videos progress
+    updateTotalVideosProgress() {
+        const GOAL = 40000;
+
+        // Calculate total videos from all channels
+        const totalVideos = this.channels.reduce((sum, channel) => sum + (channel.videoCount || 0), 0);
+
+        // Calculate percentage
+        const percentage = Math.min(100, (totalVideos / GOAL) * 100);
+
+        // Update UI
+        const countElement = document.getElementById('totalVideosCount');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercentage = document.getElementById('progressPercentage');
+
+        if (countElement) {
+            countElement.textContent = this.formatNumber(totalVideos);
+        }
+
+        if (progressBar) {
+            progressBar.style.width = `${percentage}%`;
+        }
+
+        if (progressPercentage) {
+            progressPercentage.textContent = `${percentage.toFixed(1)}%`;
+        }
     }
 
     // Render all channels
