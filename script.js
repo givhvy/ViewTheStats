@@ -3,9 +3,11 @@
 class YouTubeChannelApp {
     constructor() {
         this.channels = [];
+        this.dailySummary = { newVideosToday: 0, newViewsToday: 0 };
         this.initTheme();
         this.initEventListeners();
         this.loadChannelsFromAPI();
+        this.loadDailySummary();
     }
 
     // Initialize theme
@@ -54,6 +56,42 @@ class YouTubeChannelApp {
         } finally {
             this.renderChannels();
             this.updateChannelCount();
+        }
+    }
+
+    // Load daily summary stats
+    async loadDailySummary() {
+        try {
+            const apiUrl = `${this.getApiBaseUrl()}/api/daily-summary`;
+            const response = await fetch(apiUrl);
+
+            if (response.ok) {
+                this.dailySummary = await response.json();
+                this.updateDailySummaryUI();
+            }
+        } catch (error) {
+            console.error('Error loading daily summary:', error);
+        }
+    }
+
+    // Update daily summary UI
+    updateDailySummaryUI() {
+        // Update "Total Revenue" card to show new videos
+        const videosCard = document.querySelector('.metrics-row .metric-card:first-child');
+        if (videosCard) {
+            videosCard.querySelector('h3').textContent = 'Videos Uploaded Today';
+            videosCard.querySelector('.metric-value').textContent = this.dailySummary.newVideosToday;
+            videosCard.querySelector('.metric-change').textContent = `As of ${this.dailySummary.date || 'today'}`;
+            videosCard.querySelector('.metric-change').className = 'metric-change';
+        }
+
+        // Update "Subscriptions" card to show new views
+        const viewsCard = document.querySelector('.metrics-row .metric-card:last-child');
+        if (viewsCard) {
+            viewsCard.querySelector('h3').textContent = 'Views Gained Today';
+            viewsCard.querySelector('.metric-value').textContent = this.formatNumber(this.dailySummary.newViewsToday);
+            viewsCard.querySelector('.metric-change').textContent = `As of ${this.dailySummary.date || 'today'}`;
+            viewsCard.querySelector('.metric-change').className = 'metric-change';
         }
     }
 
@@ -220,11 +258,46 @@ class YouTubeChannelApp {
             this.renderChannels();
             this.updateChannelCount();
 
+            // Reload daily summary after adding channel
+            this.loadDailySummary();
+
         } catch (error) {
             console.error('Error adding channel:', error);
             this.showError(error.message || 'An error occurred while adding the channel');
         } finally {
             this.setLoading(false);
+        }
+    }
+
+    // Edit channel note
+    async editChannelNote(channelId, currentNote) {
+        const newNote = prompt('Enter a note for this channel (e.g., "c1"):', currentNote || '');
+
+        if (newNote === null) return; // User cancelled
+
+        try {
+            const apiUrl = `${this.getApiBaseUrl()}/api/channel/${channelId}/note`;
+            const response = await fetch(apiUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ note: newNote.trim() })
+            });
+
+            if (response.ok) {
+                // Update local channel
+                const channel = this.channels.find(ch => ch.id === channelId);
+                if (channel) {
+                    channel.note = newNote.trim();
+                    this.renderChannels();
+                }
+            } else {
+                alert('Failed to update note');
+            }
+        } catch (error) {
+            console.error('Error updating note:', error);
+            alert('Error updating note');
         }
     }
 
@@ -295,12 +368,11 @@ class YouTubeChannelApp {
         card.innerHTML = `
             <img src="${channel.thumbnail}" alt="${channel.title}" class="channel-avatar" onerror="this.src='https://via.placeholder.com/60x60/667eea/white?text=${channel.title.charAt(0)}'">
             <div class="channel-info">
-                <div class="channel-title">${channel.title}</div>
+                <div class="channel-title">
+                    ${channel.title}
+                    ${channel.note ? `<span class="channel-note">${channel.note}</span>` : ''}
+                </div>
                 <div class="channel-stats">
-                    <div class="stat-item">
-                        <div class="stat-label">Subscribers</div>
-                        <div class="stat-value">${this.formatNumber(channel.subscriberCount)}</div>
-                    </div>
                     <div class="stat-item">
                         <div class="stat-label">Videos</div>
                         <div class="stat-value">${this.formatNumber(channel.videoCount)}</div>
@@ -309,12 +381,11 @@ class YouTubeChannelApp {
                         <div class="stat-label">Total Views</div>
                         <div class="stat-value">${this.formatNumber(channel.viewCount)}</div>
                     </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Added</div>
-                        <div class="stat-value">${new Date(channel.addedAt).toLocaleDateString()}</div>
-                    </div>
                 </div>
             </div>
+            <button class="edit-note-button" onclick="app.editChannelNote('${channel.id}', '${(channel.note || '').replace(/'/g, "\\'")}')" title="Edit note">
+                ✏️
+            </button>
             <button class="remove-button" onclick="app.removeChannel('${channel.id}')">
                 Remove
             </button>

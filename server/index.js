@@ -15,9 +15,62 @@ initializeFirebase();
 app.use(cors());
 app.use(express.json());
 
+// In-memory cache for daily data (Vietnam time)
+let dailyCache = {
+    date: null, // Format: YYYY-MM-DD in Vietnam time
+    data: null
+};
+
 // YouTube API configuration
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
+
+// Helper: Get current date in Vietnam timezone (UTC+7)
+function getVietnamDate() {
+    const now = new Date();
+    const vietnamTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    return vietnamTime.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+
+// Helper: Save daily stats snapshot to Firestore
+async function saveDailySnapshot(channelId, videoCount, viewCount) {
+    const db = getFirestore();
+    if (!db) return;
+
+    const today = getVietnamDate();
+
+    try {
+        await db.collection('dailyStats').doc(`${channelId}_${today}`).set({
+            channelId,
+            date: today,
+            videoCount,
+            viewCount,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    } catch (error) {
+        console.error('Error saving daily snapshot:', error.message);
+    }
+}
+
+// Helper: Get previous day stats for a channel
+async function getPreviousDayStats(channelId) {
+    const db = getFirestore();
+    if (!db) return null;
+
+    const today = getVietnamDate();
+    const yesterday = new Date(new Date(today) - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    try {
+        const doc = await db.collection('dailyStats').doc(`${channelId}_${yesterday}`).get();
+        if (doc.exists) {
+            return doc.data();
+        }
+    } catch (error) {
+        console.error('Error getting previous day stats:', error.message);
+    }
+
+    return null;
+}
 
 // Helper function to extract channel ID/username from URL
 function extractChannelIdentifier(url) {
@@ -143,6 +196,7 @@ app.post('/api/channel', async (req, res) => {
                     channelId: channelData.id,
                     url: url,
                     title: channelData.snippet.title,
+                    note: '',
                     createdAt: admin.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
             } catch (dbError) {
@@ -155,6 +209,7 @@ app.post('/api/channel', async (req, res) => {
         res.json({
             id: formattedData.channelId,
             ...formattedData,
+            note: '',
             addedAt: Date.now()
         });
 
@@ -182,6 +237,16 @@ app.get('/api/channels', async (req, res) => {
             return res.status(503).json({ error: 'Database not connected' });
         }
 
+        const today = getVietnamDate();
+
+        // Check cache first
+        if (dailyCache.date === today && dailyCache.data) {
+            console.log('✅ Serving from cache (same day)');
+            return res.json(dailyCache.data);
+        }
+
+        console.log('🔄 Fetching fresh data from YouTube API');
+
         const snapshot = await db.collection('channels').orderBy('createdAt', 'desc').get();
 
         // Get list of channel IDs from Firestore
@@ -192,6 +257,7 @@ app.get('/api/channels', async (req, res) => {
             channelIds.push(doc.id);
             channelData[doc.id] = {
                 url: data.url,
+                note: data.note || '',
                 addedAt: data.createdAt?.toMillis() || Date.now()
             };
         });
@@ -215,7 +281,13 @@ app.get('/api/channels', async (req, res) => {
                 });
 
                 if (channelResponse.data.items) {
-                    channelResponse.data.items.forEach(item => {
+                    for (const item of channelResponse.data.items) {
+                        const videoCount = parseInt(item.statistics.videoCount || 0);
+                        const viewCount = parseInt(item.statistics.viewCount || 0);
+
+                        // Save daily snapshot for tracking
+                        await saveDailySnapshot(item.id, videoCount, viewCount);
+
                         channels.push({
                             id: item.id,
                             channelId: item.id,
@@ -223,12 +295,13 @@ app.get('/api/channels', async (req, res) => {
                             thumbnail: item.snippet.thumbnails.default.url,
                             description: item.snippet.description,
                             subscriberCount: parseInt(item.statistics.subscriberCount || 0),
-                            videoCount: parseInt(item.statistics.videoCount || 0),
-                            viewCount: parseInt(item.statistics.viewCount || 0),
+                            videoCount,
+                            viewCount,
                             url: channelData[item.id].url,
+                            note: channelData[item.id].note,
                             addedAt: channelData[item.id].addedAt
                         });
-                    });
+                    }
                 }
             } catch (apiError) {
                 console.error('YouTube API error for batch:', apiError.message);
@@ -236,10 +309,100 @@ app.get('/api/channels', async (req, res) => {
             }
         }
 
+        // Update cache
+        dailyCache = {
+            date: today,
+            data: channels
+        };
+
         res.json(channels);
     } catch (error) {
         console.error('Error fetching channels:', error);
         res.status(500).json({ error: 'Failed to fetch channels' });
+    }
+});
+
+// Get daily summary (total new videos and views)
+app.get('/api/daily-summary', async (req, res) => {
+    try {
+        const db = getFirestore();
+        if (!db) {
+            return res.status(503).json({ error: 'Database not connected' });
+        }
+
+        const today = getVietnamDate();
+
+        // Get all today's snapshots
+        const todaySnapshot = await db.collection('dailyStats')
+            .where('date', '==', today)
+            .get();
+
+        if (todaySnapshot.empty) {
+            return res.json({
+                newVideosToday: 0,
+                newViewsToday: 0,
+                date: today
+            });
+        }
+
+        let totalNewVideos = 0;
+        let totalNewViews = 0;
+
+        // For each channel, compare with yesterday's data
+        for (const doc of todaySnapshot.docs) {
+            const todayData = doc.data();
+            const channelId = todayData.channelId;
+
+            // Get yesterday's data
+            const previousData = await getPreviousDayStats(channelId);
+
+            if (previousData) {
+                const videoDiff = todayData.videoCount - previousData.videoCount;
+                const viewDiff = todayData.viewCount - previousData.viewCount;
+
+                totalNewVideos += Math.max(0, videoDiff);
+                totalNewViews += Math.max(0, viewDiff);
+            } else {
+                // First day for this channel, count all as new
+                totalNewVideos += todayData.videoCount;
+                totalNewViews += todayData.viewCount;
+            }
+        }
+
+        res.json({
+            newVideosToday: totalNewVideos,
+            newViewsToday: totalNewViews,
+            date: today
+        });
+    } catch (error) {
+        console.error('Error getting daily summary:', error);
+        res.status(500).json({ error: 'Failed to get daily summary' });
+    }
+});
+
+// Update channel note
+app.patch('/api/channel/:channelId/note', async (req, res) => {
+    try {
+        const db = getFirestore();
+        if (!db) {
+            return res.status(503).json({ error: 'Database not connected' });
+        }
+
+        const { channelId } = req.params;
+        const { note } = req.body;
+
+        await db.collection('channels').doc(channelId).update({
+            note: note || ''
+        });
+
+        // Clear cache to force refresh
+        dailyCache.date = null;
+        dailyCache.data = null;
+
+        res.json({ success: true, note: note || '' });
+    } catch (error) {
+        console.error('Error updating note:', error);
+        res.status(500).json({ error: 'Failed to update note' });
     }
 });
 
