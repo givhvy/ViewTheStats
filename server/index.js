@@ -252,6 +252,7 @@ app.get('/api/channels', async (req, res) => {
                 url: data.url,
                 note: data.note || '',
                 description: data.description || '',
+                detailDescription: data.detailDescription || '',
                 addedAt: data.createdAt?.toMillis() || Date.now()
             };
         });
@@ -268,7 +269,8 @@ app.get('/api/channels', async (req, res) => {
             const channelsWithFreshNotes = dailyCache.data.map(channel => ({
                 ...channel,
                 note: channelData[channel.id]?.note || '',
-                description: channelData[channel.id]?.description || ''
+                description: channelData[channel.id]?.description || '',
+                detailDescription: channelData[channel.id]?.detailDescription || ''
             }));
 
             return res.json(channelsWithFreshNotes);
@@ -309,6 +311,7 @@ app.get('/api/channels', async (req, res) => {
                             url: channelData[item.id].url,
                             note: channelData[item.id].note,
                             description: channelData[item.id].description,
+                            detailDescription: channelData[item.id].detailDescription,
                             addedAt: channelData[item.id].addedAt
                         });
                     }
@@ -399,13 +402,15 @@ app.patch('/api/channel/:channelId/note', async (req, res) => {
         }
 
         const { channelId } = req.params;
-        const { note, description } = req.body;
+        const { note, description, detailDescription } = req.body;
 
         const updateData = {};
         if (note !== undefined) updateData.note = note || '';
         if (description !== undefined) updateData.description = description || '';
+        if (detailDescription !== undefined) updateData.detailDescription = detailDescription || '';
 
-        await db.collection('channels').doc(channelId).update(updateData);
+        // Use set with merge to create document if it doesn't exist
+        await db.collection('channels').doc(channelId).set(updateData, { merge: true });
 
         // No need to clear cache - notes are always fetched fresh from Firestore
         res.json({ success: true, ...updateData });

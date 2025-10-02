@@ -335,6 +335,91 @@ class YouTubeChannelApp {
         }
     }
 
+    // Edit channel detail description
+    async editDetailDescription(channelId, currentDetailDescription) {
+        const newDetailDescription = prompt('Enter detail description for this channel:', currentDetailDescription || '');
+
+        if (newDetailDescription === null) return; // User cancelled
+
+        try {
+            const apiUrl = `${this.getApiBaseUrl()}/api/channel/${channelId}/note`;
+            const response = await fetch(apiUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ detailDescription: newDetailDescription.trim() })
+            });
+
+            if (response.ok) {
+                // Update local channel
+                const channel = this.channels.find(ch => ch.id === channelId);
+                if (channel) {
+                    channel.detailDescription = newDetailDescription.trim();
+                    this.renderChannels();
+                }
+            } else {
+                alert('Failed to update detail description');
+            }
+        } catch (error) {
+            console.error('Error updating detail description:', error);
+            alert('Error updating detail description');
+        }
+    }
+
+    // Show toast notification
+    showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 2000);
+    }
+
+    // Copy description to clipboard
+    async copyDescription(channelId) {
+        const channel = this.channels.find(ch => ch.id === channelId);
+        if (!channel || !channel.description) {
+            this.showToast('No description to copy');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(channel.description);
+            this.showToast('Copied!');
+        } catch (error) {
+            console.error('Error copying to clipboard:', error);
+            this.showToast('Failed to copy');
+        }
+    }
+
+    // Copy detail description to clipboard
+    async copyDetailDescription(channelId) {
+        const channel = this.channels.find(ch => ch.id === channelId);
+        if (!channel || !channel.detailDescription) {
+            this.showToast('No detail description to copy');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(channel.detailDescription);
+            this.showToast('Copied!');
+        } catch (error) {
+            console.error('Error copying to clipboard:', error);
+            this.showToast('Failed to copy');
+        }
+    }
+
     // Remove a channel
     async removeChannel(channelId) {
         if (!confirm('Are you sure you want to remove this channel?')) {
@@ -493,6 +578,7 @@ class YouTubeChannelApp {
                 <div class="channel-title">
                     ${channel.title}
                     ${channel.description ? `<span class="channel-note" onclick="app.editChannelDescription('${channel.id}', '${(channel.description || '').replace(/'/g, "\\'")}')" style="cursor: pointer;">${channel.description}</span>` : `<span class="channel-note" onclick="app.editChannelDescription('${channel.id}', '')" style="cursor: pointer; opacity: 0.5;">+ Add note</span>`}
+                    ${channel.description ? `<button class="copy-button" onclick="app.copyDescription('${channel.id}')" title="Copy description" style="margin-left: 8px; padding: 4px 8px; font-size: 12px;">📋</button>` : ''}
                 </div>
                 <div class="channel-video-progress">
                     <div class="video-progress-info">
@@ -512,6 +598,10 @@ class YouTubeChannelApp {
             </div>
             <button class="edit-note-button" onclick="app.editChannelNote('${channel.id}', '${(channel.note || '').replace(/'/g, "\\'")}')" title="Edit note">
                 ✏️
+            </button>
+            ${channel.detailDescription ? `<button class="copy-button" onclick="app.copyDetailDescription('${channel.id}')" title="Copy detail description">📋</button>` : ''}
+            <button class="edit-button" onclick="app.editDetailDescription('${channel.id}', '${(channel.detailDescription || '').replace(/'/g, "\\'")}')" title="Edit detail description">
+                Edit
             </button>
             <button class="remove-button" onclick="app.removeChannel('${channel.id}')">
                 Remove
