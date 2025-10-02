@@ -496,6 +496,21 @@ body {
     border-color: hsl(var(--border) / 0.8);
 }
 
+.channel-order-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
 .channel-avatar {
     width: 60px;
     height: 60px;
@@ -511,7 +526,7 @@ body {
 .channel-title {
     font-size: 16px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     color: hsl(var(--foreground));
     display: flex;
     align-items: center;
@@ -527,6 +542,45 @@ body {
     padding: 2px 8px;
     border-radius: 4px;
     border: 1px solid hsl(var(--border));
+}
+
+/* Channel Video Progress Bar */
+.channel-video-progress {
+    margin-bottom: 12px;
+}
+
+.video-progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.video-progress-text {
+    font-size: 12px;
+    font-weight: 500;
+    color: hsl(var(--foreground));
+}
+
+.video-progress-percentage {
+    font-size: 12px;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+}
+
+.video-progress-bar-container {
+    width: 100%;
+    height: 6px;
+    background-color: hsl(var(--secondary));
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.video-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+    transition: width 0.5s ease;
+    border-radius: 3px;
 }
 
 .channel-stats {
@@ -593,6 +647,46 @@ body {
 .loading {
     opacity: 0.6;
     pointer-events: none;
+}
+
+/* Channel Count Progress Bar */
+.channel-progress-container {
+    padding: 16px 24px;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.channel-progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.channel-progress-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: hsl(var(--foreground));
+}
+
+.channel-progress-percentage {
+    font-size: 14px;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+}
+
+.channel-progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background-color: hsl(var(--secondary));
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.channel-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    transition: width 0.5s ease;
+    border-radius: 4px;
 }
 
 /* Progress Card */

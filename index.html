@@ -69,6 +69,20 @@
                 <div class="card-header">
                     <h3>Your Channels (<span id="channelCount">0</span>)</h3>
                 </div>
+
+                <!-- Channel Count Progress Bar -->
+                <div class="channel-progress-container">
+                    <div class="channel-progress-info">
+                        <span class="channel-progress-text">
+                            <span id="currentChannelCount">0</span> / 1,000 channels
+                        </span>
+                        <span class="channel-progress-percentage" id="channelProgressPercentage">0%</span>
+                    </div>
+                    <div class="channel-progress-bar-container">
+                        <div id="channelProgressBar" class="channel-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
                 <div id="channelsList" class="channels-list">
                     <div id="emptyState" class="empty-state">
                         <div class="empty-icon">📊</div>

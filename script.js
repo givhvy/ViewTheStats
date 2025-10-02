@@ -273,7 +273,7 @@ class YouTubeChannelApp {
 
     // Edit channel note
     async editChannelNote(channelId, currentNote) {
-        const newNote = prompt('Enter a note for this channel (e.g., "c1"):', currentNote || '');
+        const newNote = prompt('Enter a note for this channel (e.g., "C1"):', currentNote || '');
 
         if (newNote === null) return; // User cancelled
 
@@ -300,6 +300,38 @@ class YouTubeChannelApp {
         } catch (error) {
             console.error('Error updating note:', error);
             alert('Error updating note');
+        }
+    }
+
+    // Edit channel description
+    async editChannelDescription(channelId, currentDescription) {
+        const newDescription = prompt('Enter description for this channel:', currentDescription || '');
+
+        if (newDescription === null) return; // User cancelled
+
+        try {
+            const apiUrl = `${this.getApiBaseUrl()}/api/channel/${channelId}/note`;
+            const response = await fetch(apiUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ description: newDescription.trim() })
+            });
+
+            if (response.ok) {
+                // Update local channel
+                const channel = this.channels.find(ch => ch.id === channelId);
+                if (channel) {
+                    channel.description = newDescription.trim();
+                    this.renderChannels();
+                }
+            } else {
+                alert('Failed to update description');
+            }
+        } catch (error) {
+            console.error('Error updating description:', error);
+            alert('Error updating description');
         }
     }
 
@@ -333,8 +365,31 @@ class YouTubeChannelApp {
 
     // Update channel count
     updateChannelCount() {
+        const CHANNEL_GOAL = 1000;
+        const channelCount = this.channels.length;
+
+        // Update the count in header
         const countElement = document.getElementById('channelCount');
-        countElement.textContent = this.channels.length;
+        countElement.textContent = channelCount;
+
+        // Update the progress bar elements
+        const currentCountElement = document.getElementById('currentChannelCount');
+        const progressBar = document.getElementById('channelProgressBar');
+        const progressPercentage = document.getElementById('channelProgressPercentage');
+
+        if (currentCountElement) {
+            currentCountElement.textContent = channelCount;
+        }
+
+        if (progressBar) {
+            const percentage = Math.min(100, (channelCount / CHANNEL_GOAL) * 100);
+            progressBar.style.width = `${percentage}%`;
+        }
+
+        if (progressPercentage) {
+            const percentage = Math.min(100, (channelCount / CHANNEL_GOAL) * 100);
+            progressPercentage.textContent = `${percentage.toFixed(1)}%`;
+        }
     }
 
     // Update total videos progress
@@ -365,6 +420,30 @@ class YouTubeChannelApp {
         }
     }
 
+    // Sort channels by note (C1, C2, C3, etc.)
+    sortChannelsByNote(channels) {
+        return [...channels].sort((a, b) => {
+            const noteA = (a.note || '').trim().toUpperCase();
+            const noteB = (b.note || '').trim().toUpperCase();
+
+            // Extract number from note (e.g., "C1" -> 1, "C10" -> 10)
+            const matchA = noteA.match(/C(\d+)/);
+            const matchB = noteB.match(/C(\d+)/);
+
+            // If both have C format, sort by number
+            if (matchA && matchB) {
+                return parseInt(matchA[1]) - parseInt(matchB[1]);
+            }
+
+            // If only A has C format, A comes first
+            if (matchA) return -1;
+            if (matchB) return 1;
+
+            // Otherwise, sort alphabetically
+            return noteA.localeCompare(noteB);
+        });
+    }
+
     // Render all channels
     renderChannels() {
         const channelsList = document.getElementById('channelsList');
@@ -384,8 +463,11 @@ class YouTubeChannelApp {
         const existingCards = channelsList.querySelectorAll('.channel-card');
         existingCards.forEach(card => card.remove());
 
+        // Sort channels by note before rendering
+        const sortedChannels = this.sortChannelsByNote(this.channels);
+
         // Create new cards
-        this.channels.forEach(channel => {
+        sortedChannels.forEach(channel => {
             const channelCard = this.createChannelCard(channel);
             channelsList.appendChild(channelCard);
         });
@@ -396,18 +478,32 @@ class YouTubeChannelApp {
         const card = document.createElement('div');
         card.className = 'channel-card';
 
+        // Extract note number for display (e.g., "C1" -> "1")
+        const noteDisplay = channel.note ? channel.note.trim().toUpperCase() : '';
+
+        // Calculate video progress (goal: 40 videos)
+        const VIDEO_GOAL = 40;
+        const videoCount = channel.videoCount || 0;
+        const videoProgress = Math.min(100, (videoCount / VIDEO_GOAL) * 100);
+
         card.innerHTML = `
+            ${noteDisplay ? `<div class="channel-order-badge">${noteDisplay}</div>` : ''}
             <img src="${channel.thumbnail}" alt="${channel.title}" class="channel-avatar" onerror="this.src='https://via.placeholder.com/60x60/667eea/white?text=${channel.title.charAt(0)}'">
             <div class="channel-info">
                 <div class="channel-title">
                     ${channel.title}
-                    ${channel.note ? `<span class="channel-note">${channel.note}</span>` : ''}
+                    ${channel.description ? `<span class="channel-note" onclick="app.editChannelDescription('${channel.id}', '${(channel.description || '').replace(/'/g, "\\'")}')" style="cursor: pointer;">${channel.description}</span>` : `<span class="channel-note" onclick="app.editChannelDescription('${channel.id}', '')" style="cursor: pointer; opacity: 0.5;">+ Add note</span>`}
+                </div>
+                <div class="channel-video-progress">
+                    <div class="video-progress-info">
+                        <span class="video-progress-text">${videoCount} / ${VIDEO_GOAL} videos</span>
+                        <span class="video-progress-percentage">${videoProgress.toFixed(0)}%</span>
+                    </div>
+                    <div class="video-progress-bar-container">
+                        <div class="video-progress-bar" style="width: ${videoProgress}%"></div>
+                    </div>
                 </div>
                 <div class="channel-stats">
-                    <div class="stat-item">
-                        <div class="stat-label">Videos</div>
-                        <div class="stat-value">${this.formatNumber(channel.videoCount)}</div>
-                    </div>
                     <div class="stat-item">
                         <div class="stat-label">Total Views</div>
                         <div class="stat-value">${this.formatNumber(channel.viewCount)}</div>

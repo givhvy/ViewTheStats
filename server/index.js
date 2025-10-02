@@ -251,6 +251,7 @@ app.get('/api/channels', async (req, res) => {
             channelData[doc.id] = {
                 url: data.url,
                 note: data.note || '',
+                description: data.description || '',
                 addedAt: data.createdAt?.toMillis() || Date.now()
             };
         });
@@ -263,10 +264,11 @@ app.get('/api/channels', async (req, res) => {
         if (dailyCache.date === today && dailyCache.data) {
             console.log('✅ Using cached YouTube stats with fresh notes');
 
-            // Merge cached stats with fresh notes from Firestore
+            // Merge cached stats with fresh notes and description from Firestore
             const channelsWithFreshNotes = dailyCache.data.map(channel => ({
                 ...channel,
-                note: channelData[channel.id]?.note || ''
+                note: channelData[channel.id]?.note || '',
+                description: channelData[channel.id]?.description || ''
             }));
 
             return res.json(channelsWithFreshNotes);
@@ -301,12 +303,12 @@ app.get('/api/channels', async (req, res) => {
                             channelId: item.id,
                             title: item.snippet.title,
                             thumbnail: item.snippet.thumbnails.default.url,
-                            description: item.snippet.description,
                             subscriberCount: parseInt(item.statistics.subscriberCount || 0),
                             videoCount,
                             viewCount,
                             url: channelData[item.id].url,
                             note: channelData[item.id].note,
+                            description: channelData[item.id].description,
                             addedAt: channelData[item.id].addedAt
                         });
                     }
@@ -397,14 +399,16 @@ app.patch('/api/channel/:channelId/note', async (req, res) => {
         }
 
         const { channelId } = req.params;
-        const { note } = req.body;
+        const { note, description } = req.body;
 
-        await db.collection('channels').doc(channelId).update({
-            note: note || ''
-        });
+        const updateData = {};
+        if (note !== undefined) updateData.note = note || '';
+        if (description !== undefined) updateData.description = description || '';
+
+        await db.collection('channels').doc(channelId).update(updateData);
 
         // No need to clear cache - notes are always fetched fresh from Firestore
-        res.json({ success: true, note: note || '' });
+        res.json({ success: true, ...updateData });
     } catch (error) {
         console.error('Error updating note:', error);
         res.status(500).json({ error: 'Failed to update note' });
