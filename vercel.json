@@ -6,15 +6,19 @@
       "use": "@vercel/node"
     },
     {
-      "src": "*.html",
+      "src": "index.html",
       "use": "@vercel/static"
     },
     {
-      "src": "*.css",
+      "src": "style.css",
       "use": "@vercel/static"
     },
     {
-      "src": "*.js",
+      "src": "script.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "favicon.svg",
       "use": "@vercel/static"
     }
   ],
@@ -24,8 +28,12 @@
       "dest": "server/index.js"
     },
     {
-      "src": "/(.*)",
+      "src": "/(.*\\.(css|js|svg|html))",
       "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
