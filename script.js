@@ -630,18 +630,22 @@ class YouTubeChannelApp {
         const videoCount = channel.videoCount || 0;
         const videoProgress = Math.min(100, (videoCount / VIDEO_GOAL) * 100);
 
+        // Get videos uploaded today count
+        const videosUploadedToday = channel.videosUploadedToday || 0;
+
         card.innerHTML = `
             ${noteDisplay ? `<div class="channel-order-badge">${noteDisplay}</div>` : ''}
-            <img src="${channel.thumbnail}" alt="${channel.title}" class="channel-avatar" onerror="this.src='https://via.placeholder.com/60x60/667eea/white?text=${channel.title.charAt(0)}'">
+            <a href="${channel.channelUrl || channel.url || ''}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
+                <img src="${channel.thumbnail}" alt="${channel.title}" class="channel-avatar" onerror="this.src='https://via.placeholder.com/60x60/667eea/white?text=${channel.title.charAt(0)}'">
+            </a>
             <div class="channel-info">
-                <div class="channel-title">
-                    ${channel.title}
+                <div class="channel-description-section">
                     ${channel.description ? `<span class="channel-note" onclick="app.editChannelDescription('${channel.id}', '${(channel.description || '').replace(/'/g, "\\'")}')" style="cursor: pointer;">${channel.description}</span>` : `<span class="channel-note" onclick="app.editChannelDescription('${channel.id}', '')" style="cursor: pointer; opacity: 0.5;">+ Add note</span>`}
                     ${channel.description ? `<button class="copy-button" onclick="app.copyDescription('${channel.id}')" title="Copy description" style="margin-left: 8px; padding: 4px 8px; font-size: 12px;">📋</button>` : ''}
                 </div>
                 <div class="channel-video-progress">
                     <div class="video-progress-info">
-                        <span class="video-progress-text">${videoCount} / ${VIDEO_GOAL} videos</span>
+                        <span class="video-progress-text">${videoCount} / ${VIDEO_GOAL} videos${videosUploadedToday > 0 ? ` <span class="uploaded-today">+${videosUploadedToday} Uploaded today</span>` : ''}</span>
                         <span class="video-progress-percentage">${videoProgress.toFixed(0)}%</span>
                     </div>
                     <div class="video-progress-bar-container">

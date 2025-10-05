@@ -271,7 +271,8 @@ app.get('/api/channels', async (req, res) => {
                 ...channel,
                 note: channelData[channel.id]?.note || '',
                 description: channelData[channel.id]?.description || '',
-                detailDescription: channelData[channel.id]?.detailDescription || ''
+                detailDescription: channelData[channel.id]?.detailDescription || '',
+                channelUrl: channelData[channel.id]?.url || channel.url || ''
             }));
 
             return res.json(channelsWithFreshNotes);
@@ -298,6 +299,12 @@ app.get('/api/channels', async (req, res) => {
                         const videoCount = parseInt(item.statistics.videoCount || 0);
                         const viewCount = parseInt(item.statistics.viewCount || 0);
 
+                        // Get previous day stats to calculate videos uploaded today
+                        const previousStats = await getPreviousDayStats(item.id);
+                        const videosUploadedToday = previousStats
+                            ? Math.max(0, videoCount - previousStats.videoCount)
+                            : 0;
+
                         // Save daily snapshot for tracking
                         await saveDailySnapshot(item.id, videoCount, viewCount);
 
@@ -309,7 +316,9 @@ app.get('/api/channels', async (req, res) => {
                             subscriberCount: parseInt(item.statistics.subscriberCount || 0),
                             videoCount,
                             viewCount,
+                            videosUploadedToday,
                             url: channelData[item.id].url,
+                            channelUrl: channelData[item.id].url,
                             note: channelData[item.id].note,
                             description: channelData[item.id].description,
                             detailDescription: channelData[item.id].detailDescription,
