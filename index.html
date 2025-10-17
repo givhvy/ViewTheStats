@@ -176,6 +176,60 @@
         </div>
     </main>
 
+    <!-- Collab Modal -->
+    <div id="collabModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Collaboration Suggestions</h2>
+                <button class="modal-close" onclick="app.closeCollabModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-content-grid">
+                    <!-- Left side - Current Suggestions List -->
+                    <div class="collab-list-section">
+                        <h3>Current Suggestions</h3>
+                        <div id="collabSuggestionsList" class="collab-suggestions-list">
+                            <!-- Suggestions will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- Right side - Add New Collab Form -->
+                    <div class="collab-form-section">
+                        <h3>Add New Collaborator</h3>
+                        <form id="addCollabForm" class="add-collab-form">
+                            <div class="form-field">
+                                <label for="collabName">Collaborator Name</label>
+                                <input
+                                    type="text"
+                                    id="collabName"
+                                    placeholder="e.g., Artist Name, Channel Name"
+                                    class="collab-input"
+                                    required
+                                >
+                            </div>
+                            <div class="form-field">
+                                <label for="collabNotes">Notes (Optional)</label>
+                                <textarea
+                                    id="collabNotes"
+                                    placeholder="Why this collab would be good..."
+                                    class="collab-textarea"
+                                    rows="3"
+                                ></textarea>
+                            </div>
+                            <button type="submit" class="btn-add-collab">
+                                <span>+ Add Collaborator</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="app.closeCollabModal()">Close</button>
+                <button class="btn-modal-save" onclick="app.saveCollabChanges()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

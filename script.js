@@ -4,6 +4,8 @@ class YouTubeChannelApp {
     constructor() {
         this.channels = [];
         this.dailySummary = { newVideosToday: 0, newViewsToday: 0 };
+        this.currentEditingChannelId = null;
+        this.currentCollabList = [];
         this.initTheme();
         this.initEventListeners();
         this.checkAndLoadData();
@@ -426,6 +428,166 @@ class YouTubeChannelApp {
         }
     }
 
+    // Open collab modal
+    openCollabModal(channelId) {
+        this.currentEditingChannelId = channelId;
+        const channel = this.channels.find(ch => ch.id === channelId);
+
+        // Parse existing collab data (stored as JSON array)
+        if (channel && channel.collabSuggestions) {
+            try {
+                this.currentCollabList = JSON.parse(channel.collabSuggestions);
+            } catch (e) {
+                // If it's old format (string), convert to array
+                this.currentCollabList = channel.collabSuggestions.split(',').map(name => ({
+                    name: name.trim(),
+                    notes: ''
+                })).filter(item => item.name);
+            }
+        } else {
+            this.currentCollabList = [];
+        }
+
+        // Show modal
+        const modal = document.getElementById('collabModal');
+        modal.style.display = 'flex';
+
+        // Render collab list
+        this.renderCollabList();
+
+        // Setup form handler
+        this.setupCollabForm();
+
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+    }
+
+    // Close collab modal
+    closeCollabModal() {
+        const modal = document.getElementById('collabModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+
+        // Reset form
+        document.getElementById('addCollabForm').reset();
+    }
+
+    // Render collab list in modal
+    renderCollabList() {
+        const listContainer = document.getElementById('collabSuggestionsList');
+        listContainer.innerHTML = '';
+
+        this.currentCollabList.forEach((collab, index) => {
+            const collabItem = document.createElement('div');
+            collabItem.className = 'collab-item';
+            collabItem.innerHTML = `
+                <div class="collab-item-content">
+                    <div class="collab-item-name">${collab.name}</div>
+                    ${collab.notes ? `<div class="collab-item-notes">${collab.notes}</div>` : ''}
+                </div>
+                <button class="collab-item-remove" onclick="app.removeCollabItem(${index})">Remove</button>
+            `;
+            listContainer.appendChild(collabItem);
+        });
+    }
+
+    // Setup collab form handler
+    setupCollabForm() {
+        const form = document.getElementById('addCollabForm');
+
+        // Remove existing listeners
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+
+        // Add new listener
+        newForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.addCollabItem();
+        });
+    }
+
+    // Add collab item to list
+    addCollabItem() {
+        const nameInput = document.getElementById('collabName');
+        const notesInput = document.getElementById('collabNotes');
+
+        const name = nameInput.value.trim();
+        const notes = notesInput.value.trim();
+
+        if (!name) {
+            alert('Please enter a collaborator name');
+            return;
+        }
+
+        // Add to list
+        this.currentCollabList.push({ name, notes });
+
+        // Clear form
+        nameInput.value = '';
+        notesInput.value = '';
+        nameInput.focus();
+
+        // Re-render list
+        this.renderCollabList();
+
+        // Show feedback
+        this.showToast('Collaborator added!');
+    }
+
+    // Remove collab item from list
+    removeCollabItem(index) {
+        this.currentCollabList.splice(index, 1);
+        this.renderCollabList();
+        this.showToast('Collaborator removed');
+    }
+
+    // Save collab changes to database
+    async saveCollabChanges() {
+        if (!this.currentEditingChannelId) return;
+
+        try {
+            const apiUrl = `${this.getApiBaseUrl()}/api/channel/${this.currentEditingChannelId}/note`;
+            const response = await fetch(apiUrl, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    collabSuggestions: JSON.stringify(this.currentCollabList)
+                })
+            });
+
+            if (response.ok) {
+                // Update local channel
+                const channel = this.channels.find(ch => ch.id === this.currentEditingChannelId);
+                if (channel) {
+                    channel.collabSuggestions = JSON.stringify(this.currentCollabList);
+                    this.renderChannels();
+                }
+
+                this.showToast('Changes saved successfully!');
+                this.closeCollabModal();
+            } else {
+                alert('Failed to save changes');
+            }
+        } catch (error) {
+            console.error('Error saving collab changes:', error);
+            alert('Error saving changes');
+        }
+    }
+
+    // Calculate days since last upload
+    calculateDaysSinceLastUpload(channel) {
+        if (!channel.lastUploadDate) return null;
+
+        const today = new Date(this.getVietnamDate());
+        const lastUpload = new Date(channel.lastUploadDate);
+        const diffTime = today - lastUpload;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        return diffDays;
+    }
+
     // Show toast notification
     showToast(message) {
         const toast = document.createElement('div');
@@ -633,6 +795,17 @@ class YouTubeChannelApp {
         // Get videos uploaded today count
         const videosUploadedToday = channel.videosUploadedToday || 0;
 
+        // Calculate days since last upload
+        const daysSinceUpload = this.calculateDaysSinceLastUpload(channel);
+        let missedDaysHTML = '';
+        if (daysSinceUpload !== null && daysSinceUpload > 0) {
+            if (daysSinceUpload === 1) {
+                missedDaysHTML = `<span class="missed-days">Missed 1 day</span>`;
+            } else if (daysSinceUpload > 1) {
+                missedDaysHTML = `<span class="missed-days">Missed ${daysSinceUpload} days</span>`;
+            }
+        }
+
         card.innerHTML = `
             ${noteDisplay ? `<div class="channel-order-badge">${noteDisplay}</div>` : ''}
             <a href="${channel.channelUrl || channel.url || ''}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
@@ -645,7 +818,7 @@ class YouTubeChannelApp {
                 </div>
                 <div class="channel-video-progress">
                     <div class="video-progress-info">
-                        <span class="video-progress-text">${videoCount} / ${VIDEO_GOAL} videos${videosUploadedToday > 0 ? ` <span class="uploaded-today">+${videosUploadedToday} Uploaded today</span>` : ''}</span>
+                        <span class="video-progress-text">${videoCount} / ${VIDEO_GOAL} videos${videosUploadedToday > 0 ? ` <span class="uploaded-today">+${videosUploadedToday} Uploaded today</span>` : ''} ${missedDaysHTML}</span>
                         <span class="video-progress-percentage">${videoProgress.toFixed(0)}%</span>
                     </div>
                     <div class="video-progress-bar-container">
@@ -659,6 +832,9 @@ class YouTubeChannelApp {
                     </div>
                 </div>
             </div>
+            <button class="collab-button" onclick="app.openCollabModal('${channel.id}')" title="Manage collaborations">
+                Collab
+            </button>
             <button class="edit-note-button" onclick="app.editChannelNote('${channel.id}', '${(channel.note || '').replace(/'/g, "\\'")}')" title="Edit note">
                 ✏️
             </button>

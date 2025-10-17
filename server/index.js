@@ -254,6 +254,7 @@ app.get('/api/channels', async (req, res) => {
                 note: data.note || '',
                 description: data.description || '',
                 detailDescription: data.detailDescription || '',
+                collabSuggestions: data.collabSuggestions || '',
                 addedAt: data.createdAt?.toMillis() || Date.now()
             };
         });
@@ -272,6 +273,7 @@ app.get('/api/channels', async (req, res) => {
                 note: channelData[channel.id]?.note || '',
                 description: channelData[channel.id]?.description || '',
                 detailDescription: channelData[channel.id]?.detailDescription || '',
+                collabSuggestions: channelData[channel.id]?.collabSuggestions || '',
                 channelUrl: channelData[channel.id]?.url || channel.url || ''
             }));
 
@@ -322,6 +324,7 @@ app.get('/api/channels', async (req, res) => {
                             note: channelData[item.id].note,
                             description: channelData[item.id].description,
                             detailDescription: channelData[item.id].detailDescription,
+                            collabSuggestions: channelData[item.id].collabSuggestions,
                             addedAt: channelData[item.id].addedAt
                         });
                     }
@@ -412,12 +415,13 @@ app.patch('/api/channel/:channelId/note', async (req, res) => {
         }
 
         const { channelId } = req.params;
-        const { note, description, detailDescription } = req.body;
+        const { note, description, detailDescription, collabSuggestions } = req.body;
 
         const updateData = {};
         if (note !== undefined) updateData.note = note || '';
         if (description !== undefined) updateData.description = description || '';
         if (detailDescription !== undefined) updateData.detailDescription = detailDescription || '';
+        if (collabSuggestions !== undefined) updateData.collabSuggestions = collabSuggestions || '';
 
         // Use set with merge to create document if it doesn't exist
         await db.collection('channels').doc(channelId).set(updateData, { merge: true });
