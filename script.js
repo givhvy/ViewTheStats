@@ -839,13 +839,21 @@ class YouTubeChannelApp {
                 ✏️
             </button>
             ${channel.detailDescription ? `<button class="copy-button" onclick="app.copyDetailDescription('${channel.id}')" title="Copy detail description">📋</button>` : ''}
-            <button class="edit-button" onclick="app.editDetailDescription('${channel.id}', '${(channel.detailDescription || '').replace(/'/g, "\\'")}')" title="Edit detail description">
+            <button class="edit-button" data-channel-id="${channel.id}" title="Edit detail description">
                 Edit
             </button>
             <button class="remove-button" onclick="app.removeChannel('${channel.id}')">
                 Remove
             </button>
         `;
+
+        // Add event listener for Edit button to avoid escaping issues
+        const editButton = card.querySelector('.edit-button');
+        if (editButton) {
+            editButton.addEventListener('click', () => {
+                this.editDetailDescription(channel.id, channel.detailDescription || '');
+            });
+        }
 
         return card;
     }
